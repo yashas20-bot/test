@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weather App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    #weather {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      max-width: 400px;
+    }
+    span {
+      display: block;
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🌍 Your Local Weather</h2>
+  <button onclick="getLocation()">Get My Weather</button>
+
+  <div id="weather">
+    <span id="place">Location: --</span>
+    <span id="coords">Coordinates: --</span>
+    <span id="current">Current weather: --</span>
+    <span id="wind">Wind speed: --</span>
+    <span id="future">Forecast (48 hrs later): --</span>
+  </div>
+
+  <script>
+    const apiKey = "be390ea4a79bfaec0c00f8d29f8a5c29";
+
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(fetchWeather, showError);
+      } else {
+        alert("Geolocation is not supported by your browser.");
+      }
+    }
+
+    function fetchWeather(position) {
+      const lat = position.coords.latitude.toFixed(4);
+      const lon = position.coords.longitude.toFixed(4);
+
+      document.getElementById("coords").textContent = `Coordinates: ${lat}, ${lon}`;
+
+      // Fetch current weather
+      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`)
+        .then(res => res.json())
+        .then(data => {
+          const city = data.name;
+          const weather = data.weather[0].description;
+          const temp = data.main.temp;
+          const wind = data.wind.speed;
+
+          document.getElementById("place").textContent = `Location: ${city}`;
+          document.getElementById("current").textContent = `Current weather: ${weather}, ${temp}°C`;
+          document.getElementById("wind").textContent = `Wind speed: ${wind} m/s`;
+        });
+
+      // Fetch 2-day forecast
+      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`)
+        .then(res => res.json())
+        .then(data => {
+          const now = Date.now();
+          const targetTime = now + 48 * 60 * 60 * 1000; // 48 hours from now
+          let closest = null;
+          let minDiff = Infinity;
+
+          data.list.forEach(entry => {
+            const entryTime = new Date(entry.dt_txt).getTime();
+            const diff = Math.abs(entryTime - targetTime);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closest = entry;
+            }
+          });
+
+          if (closest) {
+            const desc = closest.weather[0].description;
+            const temp = closest.main.temp;
+            const time = closest.dt_txt;
+            document.getElementById("future").textContent =
+              `Forecast (~48 hrs later, ${time}): ${desc}, ${temp}°C`;
+          } else {
+            document.getElementById("future").textContent = "No forecast available.";
+          }
+        });
+    }
+
+    function showError() {
+      alert("Unable to access your location.");
+    }
+  </script>
+
+</body>
+</html>
