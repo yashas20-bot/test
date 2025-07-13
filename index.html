@@ -1,105 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Weather App</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nature Weather Tracker 🌿</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;700&display=swap" />
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
+      margin: 0;
+      font-family: 'Ubuntu', sans-serif;
+      background: linear-gradient(to bottom, #e6ffe6, #ccffcc);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
     }
-    #weather {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      max-width: 400px;
+
+    .weather-layer div {
+      position: absolute;
     }
-    span {
-      display: block;
-      margin: 8px 0;
+
+    .sun {
+      width: 100px;
+      height: 100px;
+      background: #fde047;
+      border-radius: 50%;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: pulse-sun 3s ease-in-out infinite;
+      box-shadow: 0 0 60px 20px rgba(253, 224, 71, 0.4);
+    }
+
+    .raindrop {
+      width: 2px;
+      height: 10px;
+      background: #3b82f6;
+      opacity: 0.7;
+      animation: raindrop 2s linear infinite;
+    }
+
+    .wind {
+      width: 80px;
+      height: 4px;
+      background: #ffffffaa;
+      border-radius: 4px;
+      animation: wind 4s linear infinite;
+    }
+
+    @keyframes raindrop {
+      0% { transform: translateY(-100%); opacity: 0; }
+      30% { opacity: 0.7; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+
+    @keyframes wind {
+      0% { transform: translateX(-150%); opacity: 0.3; }
+      50% { opacity: 0.6; }
+      100% { transform: translateX(150%); opacity: 0; }
+    }
+
+    @keyframes pulse-sun {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.2); opacity: 1; }
     }
   </style>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
-  <h2>🌍 Your Local Weather</h2>
-  <button onclick="getLocation()">Get My Weather</button>
-
-  <div id="weather">
-    <span id="place">Location: --</span>
-    <span id="coords">Coordinates: --</span>
-    <span id="current">Current weather: --</span>
-    <span id="wind">Wind speed: --</span>
-    <span id="future">Forecast (48 hrs later): --</span>
-  </div>
-
-  <script>
-    const apiKey = "be390ea4a79bfaec0c00f8d29f8a5c29";
-
-    function getLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(fetchWeather, showError);
-      } else {
-        alert("Geolocation is not supported by your browser.");
-      }
+    async function getRegionName(lat, lon) {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+      const data = await res.json();
+      const addr = data.address || {};
+      return (
+        addr.village ||
+        addr.hamlet ||
+        addr.suburb ||
+        addr.town ||
+        addr.city ||
+        addr.county ||
+        addr.state ||
+        data.display_name
+      );
     }
-   // this is a test
-    function fetchWeather(position) {
-      const lat = position.coords.latitude.toFixed(4);
-      const lon = position.coords.longitude.toFixed(4);
 
-      
-      document.getElementById("coords").textContent = `Coordinates: ${lat}, ${lon}`;
+    const App = () => {
+      const [weatherType, setWeatherType] = useState("sunny");
+      const [region, setRegion] = useState("Locating...");
 
-      // Fetch current weather
-      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`)
-        .then(res => res.json())
-        .then(data => {
-          const city = data.name;
-          const weather = data.weather[0].description;
-          const temp = data.main.temp;
-          const wind = data.wind.speed;
+      useEffect(() => {
+        // Rotate weather animations
+        const types = ["sunny", "rainy", "windy"];
+        let i = 0;
+        const interval = setInterval(() => {
+          i = (i + 1) % types.length;
+          setWeatherType(types[i]);
+        }, 8000);
+        return () => clearInterval(interval);
+      }, []);
 
-          document.getElementById("place").textContent = `Location: ${city}`;
-          document.getElementById("current").textContent = `Current weather: ${weather}, ${temp}°C`;
-          document.getElementById("wind").textContent = `Wind speed: ${wind} m/s`;
+      useEffect(() => {
+        // Get precise region name
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const lat = pos.coords.latitude.toFixed(6);
+          const lon = pos.coords.longitude.toFixed(6);
+          const locName = await getRegionName(lat, lon);
+          setRegion(locName);
+        }, () => {
+          setRegion("Location unavailable");
         });
+      }, []);
 
-      // Fetch 2-day forecast
-      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`)
-        .then(res => res.json())
-        .then(data => {
-          const now = Date.now();
-          const targetTime = now + 48 * 60 * 60 * 1000; // 48 hours from now
-          let closest = null;
-          let minDiff = Infinity;
+      const renderWeatherLayer = () => {
+        if (weatherType === "sunny") {
+          return <div className="sun"></div>;
+        }
+        if (weatherType === "rainy") {
+          return Array.from({ length: 30 }).map((_, i) => (
+            <div
+              key={i}
+              className="raindrop"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+              }}
+            />
+          ));
+        }
+        if (weatherType === "windy") {
+          return Array.from({ length: 10 }).map((_, i) => (
+            <div
+              key={i}
+              className="wind"
+              style={{
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+              }}
+            />
+          ));
+        }
+      };
 
-          data.list.forEach(entry => {
-            const entryTime = new Date(entry.dt_txt).getTime();
-            const diff = Math.abs(entryTime - targetTime);
-            if (diff < minDiff) {
-              minDiff = diff;
-              closest = entry;
-            }
-          });
+      return (
+        <main>
+          <div className="weather-layer">{renderWeatherLayer()}</div>
+          <div
+            style={{
+              background: "white",
+              padding: "2rem",
+              borderRadius: "1.5rem",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+              textAlign: "center",
+              zIndex: 10,
+              position: "relative",
+              maxWidth: "800px",
+            }}
+          >
+            <h1 style={{ fontSize: "2.5rem", color: "#14532d" }}>
+              Nature Weather Tracker 🌿
+            </h1>
+            <h2 style={{ fontSize: "1.3rem", color: "#388e3c", marginTop: "10px" }}>
+              Region: {region}
+            </h2>
+            <svg width="200" height="200">
+              <circle
+                cx="100"
+                cy="100"
+                r="80"
+                fill="#eaeaea"
+                stroke="#c9c9c9"
+                strokeWidth="4"
+              />
+              <text
+                x="50%"
+                y="50%"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                fill="#555"
+              >
+                Weather
+              </text>
+            </svg>
+          </div>
+        </main>
+      );
+    };
 
-          if (closest) {
-            const desc = closest.weather[0].description;
-            const temp = closest.main.temp;
-            const time = closest.dt_txt;
-            document.getElementById("future").textContent =
-              `Forecast (~48 hrs later, ${time}): ${desc}, ${temp}°C`;
-          } else {
-            document.getElementById("future").textContent = "No forecast available.";
-          }
-        });
-    }
-
-    function showError() {
-      alert("Unable to access your location.");
-    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
-
 </body>
 </html>
