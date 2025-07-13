@@ -44,11 +44,12 @@
         alert("Geolocation is not supported by your browser.");
       }
     }
-
+   // this is a test
     function fetchWeather(position) {
       const lat = position.coords.latitude.toFixed(4);
       const lon = position.coords.longitude.toFixed(4);
 
+      
       document.getElementById("coords").textContent = `Coordinates: ${lat}, ${lon}`;
 
       // Fetch current weather
